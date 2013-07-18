@@ -158,6 +158,10 @@ def do_help(parser, args, help_all = False):
         if help_all, print help for daemon commands as well 
     """
 
+    def help_for_sigs(sigs, partial=None):
+        sys.stdout.write(format_help(parse_json_funcsigs(sigs, 'cli'),
+                         partial=partial))
+
     def help_for_target(target, partial=None):
         ret, outbuf, outs = json_command(cluster_handle, target=target,
                                          prefix='get_command_descriptions', 
@@ -167,39 +171,57 @@ def do_help(parser, args, help_all = False):
                 "couldn't get command descriptions for {0}: {1}".\
                 format(target, outs)
         else:
-            sys.stdout.write(format_help(parse_json_funcsigs(outbuf, 'cli'),
-                             partial))
+            help_for_sigs(outbuf, partial)
 
+
+    def hdr(s):
+        print '\n', s, '\n', '=' * len(s)
+
+    hdr('Monitor commands:')
+    partial = ' '.join(args)
     parser.print_help()
     print '\n'
+
     if (cluster_handle):
-        help_for_target(target=('mon', ''), partial=' '.join(args))
+        help_for_target(target=('mon', ''), partial=partial)
 
     if help_all and cluster_handle:
+        cmd = 'get_command_descriptions'
         # try/except in case there are no daemons of that type
         try:
             firstosd = osdids()[0]
-            print '\nOSD.{0} tell commands and pg pgid commands:\n\n'.\
-                format(firstosd)
-            help_for_target(target=('osd', osdids()[0]))
+            hdr('OSD.{0} tell commands and pg pgid commands:'.format(firstosd))
+            help_for_target(target=('osd', firstosd), partial=partial)
 
-            print '\nOSD daemon commands:\n\n'
-            sys.stdout.write(format_help(parse_json_funcsigs(admin_socket(ceph_conf('admin_socket', 'osd.' + firstosd), ['get_command_descriptions']), 'cli')))
-        except:
+            hdr('OSD daemon commands:')
+            sock = ceph_conf('admin_socket', 'osd.' + firstosd)
+            sigs = admin_socket(sock, cmd, format='json')
+            help_for_sigs(sigs, partial)
+        except Exception as e:
+            if verbose:
+                raise e
             pass
 
         try:
             firstmon = monids()[0]
-            print '\nmon.{0} daemon commands:\n\n'.format(firstmon)
-            sys.stdout.write(format_help(parse_json_funcsigs(admin_socket(ceph_conf('admin_socket', 'mon.' + firstmon), ['get_command_descriptions']), 'cli')))
-        except:
+            hdr('mon.{0} daemon commands:'.format(firstmon))
+            sock = ceph_conf('admin_socket', 'mon.' + firstmon)
+            sigs = admin_socket(sock, cmd, format='json')
+            help_for_sigs(sigs, partial)
+        except Exception as e:
+            if verbose:
+                raise e
             pass
 
         try:
             firstmds = mdsids()[0]
-            print '\nmds.{0} daemon commands:\n\n'.format(firstmds)
-            sys.stdout.write(format_help(parse_json_funcsigs(admin_socket(ceph_conf('admin_socket', 'mds.' + firstmds), ['get_command_descriptions']), 'cli')))
-        except:
+            hdr('mds.{0} daemon commands:'.format(firstmds))
+            sock = ceph_conf('admin_socket', 'mds.' + firstmds)
+            sigs = admin_socket(sock, cmd, format='json')
+            help_for_sigs(sigs, partial)
+        except Exception as e:
+            if verbose:
+                raise e
             pass
 
     return 0
@@ -321,7 +343,7 @@ def admin_socket(asok_path, cmd, format=''):
     except Exception as e:
         raise RuntimeError('exception getting command descriptions: ' + str(e))
 
-    if cmd[0] == 'get_command_descriptions':
+    if cmd == 'get_command_descriptions':
         return cmd_json
 
     sigdict = parse_json_funcsigs(cmd_json, 'cli')
