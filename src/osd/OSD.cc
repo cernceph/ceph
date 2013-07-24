@@ -1012,9 +1012,11 @@ bool OSD::asok_command(string command, string args, string format, ostream& ss)
     format = "json-pretty";
   Formatter *f = new_formatter(format);
   if (command == "dump_ops_in_flight") {
-    op_tracker.dump_ops_in_flight(f, ss);
+    op_tracker.dump_ops_in_flight(f);
+    f->flush(ss);
   } else if (command == "dump_historic_ops") {
-    op_tracker.dump_historic_ops(f, ss);
+    op_tracker.dump_historic_ops(f);
+    f->flush(ss);
   } else if (command == "dump_op_pq_state") {
     f->open_object_section("pq");
     op_wq.dump(f);
