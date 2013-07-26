@@ -171,12 +171,10 @@ void CephContext::do_command(std::string command, std::string args,
   if (command == "perfcounters_dump" || command == "1" ||
       command == "perf dump") {
     _perf_counters_collection->dump_formatted(f, false);
-    f->flush(*out);
   }
   else if (command == "perfcounters_schema" || command == "2" ||
     command == "perf schema") {
     _perf_counters_collection->dump_formatted(f, true);
-    f->flush(*out);
   }
   else {
     f->open_object_section(command.c_str());
