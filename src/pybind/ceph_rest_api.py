@@ -8,6 +8,7 @@ import json
 import logging
 import logging.handlers
 import rados
+import socket
 import textwrap
 import xml.etree.ElementTree
 import xml.sax.saxutils
@@ -101,6 +102,41 @@ def get_conf(cfg, clientname, key):
 
 METHOD_DICT = {'r':['GET'], 'w':['PUT', 'DELETE']}
 
+def find_local_osd():
+    ailist = socket.getaddrinfo(socket.gethostname(), None)
+    # returns a list of:
+    # (fam, type, proto, canonname, sockaddr)
+    # sockaddr is a tuple:
+    # v4: (addr, port)
+    # v6: (addr, port, flowinfo, scopeid)
+    # so we extract [4][0] to get addr in both cases
+
+    iplist = [ai[4][0] for ai in ailist]
+    localips = [ip for ip in iplist if not ip.startswith('127.')]
+    if len(localips) == 0:
+        raise EnvironmentError('Can\'t find local ip addr')
+
+    ret, outbuf, outs = json_command(glob.cluster, prefix="osd dump",
+                                     argdict=dict(format='json'))
+    if ret:
+        raise EnvironmentError(ret, 'Can\'t get osd dump output')
+    try:
+        osddump = json.loads(outbuf)
+    except:
+        raise EnvironmentError(EINVAL, 'Invalid JSON back from osd dump')
+    for osd in osddump['osds']:
+        osdaddr = osd['public_addr']
+        # Use CephEntityAddr.valid() to parse the address; tries to
+        # handle both v4 and v6
+        osdparsed = CephEntityAddr()
+        try:
+            osdparsed.valid(osdaddr)
+        except:
+            raise EnvironmentError(None, 'Can\'t parse osd address')
+        if osdparsed.addr in localips:
+            return osd['osd']
+    return None
+
 # XXX this is done globally, and cluster connection kept open; there
 # are facilities to pass around global info to requests and to
 # tear down connections between requests if it becomes important
@@ -168,19 +204,20 @@ def api_setup():
 
     glob.sigdict = get_command_descriptions()
 
-    # osd.0 is designated the arbiter of valid osd commands
-    osd_sigdict = get_command_descriptions(target=('osd', 0))
+    osdid = find_local_osd()
+    if osdid:
+        osd_sigdict = get_command_descriptions(target=('osd', int(osdid)))
 
-    # shift osd_sigdict keys up to fit at the end of the mon's glob.sigdict
-    maxkey = sorted(glob.sigdict.keys())[-1]
-    maxkey = int(maxkey.replace('cmd', ''))
-    osdkey = maxkey + 1
-    for k, v in osd_sigdict.iteritems():
-        newv = v
-        newv['flavor'] = 'tell'
-        globk = 'cmd' + str(osdkey)
-        glob.sigdict[globk] = newv
-        osdkey += 1
+        # shift osd_sigdict keys up to fit at the end of the mon's glob.sigdict
+        maxkey = sorted(glob.sigdict.keys())[-1]
+        maxkey = int(maxkey.replace('cmd', ''))
+        osdkey = maxkey + 1
+        for k, v in osd_sigdict.iteritems():
+            newv = v
+            newv['flavor'] = 'tell'
+            globk = 'cmd' + str(osdkey)
+            glob.sigdict[globk] = newv
+            osdkey += 1
 
     # glob.sigdict maps "cmdNNN" to a dict containing:
     # 'sig', an array of argdescs
