@@ -100,8 +100,6 @@ def parse_cmdargs(args=None, target=''):
 
     parser.add_argument('-h', '--help', help='request mon help',
                         action='store_true')
-    parser.add_argument('--help-all', help='request help for all daemons',
-                        action='store_true')
 
     parser.add_argument('-c', '--conf', dest='cephconf',
                         help='ceph configuration file')
@@ -150,12 +148,10 @@ def parse_cmdargs(args=None, target=''):
 
     return parser, parsed_args, extras
 
-def do_help(parser, args, help_all = False):
+def do_help(parser, args):
     """
     Print basic parser help
-    If the cluster is available:
-        get and print monitor help; 
-        if help_all, print help for daemon commands as well 
+    If the cluster is available, get and print monitor help
     """
 
     def help_for_sigs(sigs, partial=None):
@@ -184,45 +180,6 @@ def do_help(parser, args, help_all = False):
 
     if (cluster_handle):
         help_for_target(target=('mon', ''), partial=partial)
-
-    if help_all and cluster_handle:
-        cmd = 'get_command_descriptions'
-        # try/except in case there are no daemons of that type
-        try:
-            firstosd = osdids()[0]
-            hdr('OSD.{0} tell commands and pg pgid commands:'.format(firstosd))
-            help_for_target(target=('osd', firstosd), partial=partial)
-
-            hdr('OSD daemon commands:')
-            sock = ceph_conf('admin_socket', 'osd.' + firstosd)
-            sigs = admin_socket(sock, cmd, format='json')
-            help_for_sigs(sigs, partial)
-        except Exception as e:
-            if verbose:
-                raise e
-            pass
-
-        try:
-            firstmon = monids()[0]
-            hdr('mon.{0} daemon commands:'.format(firstmon))
-            sock = ceph_conf('admin_socket', 'mon.' + firstmon)
-            sigs = admin_socket(sock, cmd, format='json')
-            help_for_sigs(sigs, partial)
-        except Exception as e:
-            if verbose:
-                raise e
-            pass
-
-        try:
-            firstmds = mdsids()[0]
-            hdr('mds.{0} daemon commands:'.format(firstmds))
-            sock = ceph_conf('admin_socket', 'mds.' + firstmds)
-            sigs = admin_socket(sock, cmd, format='json')
-            help_for_sigs(sigs, partial)
-        except Exception as e:
-            if verbose:
-                raise e
-            pass
 
     return 0
 
@@ -603,8 +560,8 @@ def main():
             format(e.__class__.__name__)
         return 1
 
-    if parsed_args.help or parsed_args.help_all:
-        return do_help(parser, childargs, parsed_args.help_all)
+    if parsed_args.help:
+        return do_help(parser, childargs)
 
     # implement -w/--watch_*
     # This is ugly, but Namespace() isn't quite rich enough.
