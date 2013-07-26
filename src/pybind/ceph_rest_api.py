@@ -338,12 +338,13 @@ def show_human_help(prefix):
     line = ''
     for cmdsig in sorted(glob.sigdict.itervalues(), cmp=descsort):
         concise = concise_sig(cmdsig['sig'])
-        if cmdsig['flavor'] == 'tell':
-            concise = 'tell/<osdid-or-pgid>/' + concise
+        flavor = cmdsig.get('flavor', 'mon')
+        if flavor == 'tell':
+            concise = 'tell/<target>/' + concise
         if concise.startswith(prefix):
             line = ['<tr><td>']
             wrapped_sig = textwrap.wrap(
-                concise_sig_for_uri(cmdsig['sig'], cmdsig['flavor']), 40
+                concise_sig_for_uri(cmdsig['sig'], flavor), 40
             )
             for sigline in wrapped_sig:
                 line.append(flask.escape(sigline) + '\n')
@@ -442,6 +443,7 @@ def handler(catchall_path=None, fmt=None, target=None):
     valid = True
     prefix = ''
     pgid = None
+    cmdtarget = 'mon', ''
 
     if target:
         # got tell/<target>; validate osdid or pgid
