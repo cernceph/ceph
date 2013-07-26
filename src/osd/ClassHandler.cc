@@ -31,11 +31,42 @@ int ClassHandler::open_class(const string& cname, ClassData **pcls)
   return 0;
 }
 
+int ClassHandler::open_all_classes()
+{
+  dout(10) << __func__ << dendl;
+  DIR *dir = ::opendir(g_conf->osd_class_dir.c_str());
+  if (!dir)
+    return -errno;
+
+  struct dirent de, *pde;
+  int r = 0;
+  while ((r = ::readdir_r(dir, &de, &pde)) == 0) {
+    if (de.d_name[0] == '.')
+      continue;
+    if (strstr(de.d_name, "libcls_") == de.d_name &&
+	strcmp(de.d_name + strlen(de.d_name) - 3, ".so") == 0 &&
+	strlen(de.d_name) > 10) {
+      char cname[strlen(de.d_name)];
+      strcpy(cname, de.d_name + 7);
+      cname[strlen(cname) - 3] = '\0';
+      dout(10) << __func__ << " found " << cname << dendl;
+      ClassData *cls;
+      r = open_class(cname, &cls);
+      if (r < 0)
+	goto out;
+    }
+  }
+ out:
+  closedir(dir);
+  return r;
+}
+
 void ClassHandler::shutdown()
 {
   for (map<string, ClassData>::iterator p = classes.begin(); p != classes.end(); ++p) {
     dlclose(p->second.handle);
   }
+  classes.clear();
 }
 
 ClassHandler::ClassData *ClassHandler::_get_class(const string& cname)
