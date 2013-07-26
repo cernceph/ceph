@@ -3873,7 +3873,7 @@ COMMAND("bench " \
 COMMAND("flush_pg_stats", "flush pg stats", "osd", "rw", "cli,rest")
 COMMAND("debug_dump_missing " \
 	"name=filename,type=CephFilepath",
-	"dump missing objects to a named file", "osd", "rw", "cli,rest")
+	"dump missing objects to a named file", "osd", "r", "cli,rest")
 COMMAND("debug kick_recovery_wq " \
 	"name=delay,type=CephInt,range=0",
 	"set osd_recovery_delay_start to <val>", "osd", "rw", "cli,rest")
