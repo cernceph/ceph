@@ -672,7 +672,7 @@ OPTION(osd_recovery_forget_lost_objects, OPT_BOOL, false)   // off for now
 OPTION(osd_max_scrubs, OPT_INT, 1)
 OPTION(osd_scrub_begin_hour, OPT_INT, 0)
 OPTION(osd_scrub_end_hour, OPT_INT, 24)
-OPTION(osd_scrub_load_threshold, OPT_FLOAT, 0.5)
+OPTION(osd_scrub_load_threshold, OPT_FLOAT, 5.0)  // tune this to be roughly 80% of an OSD's 24hr load average
 OPTION(osd_scrub_min_interval, OPT_FLOAT, 60*60*24)    // if load is low
 OPTION(osd_scrub_max_interval, OPT_FLOAT, 7*60*60*24)  // regardless of load
 OPTION(osd_scrub_interval_randomize_ratio, OPT_FLOAT, 0.5) // randomize the scheduled scrub in the span of [min,min*(1+randomize_radio))
