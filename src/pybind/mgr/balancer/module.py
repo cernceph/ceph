@@ -555,12 +555,16 @@ class Module(MgrModule):
             } for r in pe.total_by_root.keys()
         }
 
+        # get the list of score metrics, comma separated
+        metrics = self.get_config('crush_compat_metrics', 'pgs,objects,bytes').split(',')
+
         # total score is just average of normalized stddevs
         pe.score = 0.0
         for r, vs in pe.score_by_root.iteritems():
             for k, v in vs.iteritems():
-                pe.score += v
-        pe.score /= 3 * len(roots)
+                if k in metrics:
+                    pe.score += v
+        pe.score /= len(metrics) * len(roots)
         return pe
 
     def evaluate(self, ms, verbose=False):
@@ -679,7 +683,12 @@ class Module(MgrModule):
                          overlap)
             return False
 
-        key = 'pgs'  # pgs objects or bytes
+        # rebalance by pgs, objects, or bytes
+        metrics = self.get_config('crush_compat_metrics', 'pgs,objects,bytes').split(',')
+        key = metrics[0] # balancing using the first score metric
+        if key not in ['pgs', 'bytes', 'objects']:
+            self.log.warn("Invalid crush_compat_key %s. Using 'pgs'." % key)
+            key = 'pgs'
 
         # go
         best_ws = copy.deepcopy(orig_ws)
